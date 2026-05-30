@@ -5,7 +5,7 @@ maintainers:
   - name: aydev
     email: aydev@barbhack.fr
 type: application
-version: 1.0.0
+version: 1.1.0
 appVersion: "4.96.2"
 kubeVersion: ">=1.19.0-0"
 keywords:

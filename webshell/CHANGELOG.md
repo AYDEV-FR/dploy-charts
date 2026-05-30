@@ -5,6 +5,16 @@ All notable changes to the webshell Helm chart will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-05-30
+
+### Added
+
+- Gateway API `HTTPRoute` template, opt-in via `httpRoute.enabled`, as an
+  alternative to `Ingress` for clusters running the Gateway API (e.g. Cilium
+  agentgateway). Routes `/` to the chart's service; configurable
+  `parentRefs`, `hostnames` and `annotations`. May coexist with
+  `ingress.enabled`, but typically only one is enabled per deployment.
+
 ## [1.0.0] - 2025-12-19
 
 ### Breaking Changes

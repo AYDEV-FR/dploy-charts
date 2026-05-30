@@ -111,6 +111,20 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
+# Gateway API HTTPRoute — alternative to Ingress for clusters using the
+# Gateway API (e.g. Cilium agentgateway). May coexist with ingress.enabled,
+# but you'd normally enable exactly one. Routes "/" to the chart's service.
+httpRoute:
+  enabled: false
+  # parentRefs: list of Gateways this route attaches to (required when enabled).
+  parentRefs: []
+  #   - name: my-gateway
+  #     namespace: default
+  # hostnames: list of FQDNs the route claims (e.g. <instance>.example.com).
+  hostnames: []
+  # annotations: e.g. external-dns target for the parent Gateway's address.
+  annotations: {}
+
 persistence:
   enabled: true
   storageClass: ""
