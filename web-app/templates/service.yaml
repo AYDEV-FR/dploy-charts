@@ -2,14 +2,21 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "web-app.fullname" . }}
+  annotations:
+    {{- include "Values.service.extraAnnotations" . | nindent 4 }}
   labels:
     {{- include "web-app.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
+{{- /*
+TODO port validation could be better.
+*/}}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
-      protocol: TCP
-      name: http
+  {{- range .Values.service.ports }}
+    - port: {{ .port }}
+      targetPort: {{ .targetPort }}
+      protocol: {{ .protocol }}
+      name: {{ .name }}
+  {{- end }}
   selector:
     {{- include "web-app.selectorLabels" . | nindent 4 }}

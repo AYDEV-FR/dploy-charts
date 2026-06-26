@@ -26,8 +26,11 @@ envFrom: []
   # - secretRef:
   #     name: my-secret
 
-# Port the app listens on inside the container.
-containerPort: 8080
+# Port the app are listening to on inside of the container.
+containerPorts:
+  - name: http
+    containerPort: 8080
+    protocol: TCP
 
 # RuntimeClass for the pod (e.g. kata-clh / kata-qemu). Empty = cluster default
 # runtime, in which case user namespaces do the confining.
@@ -119,7 +122,12 @@ networkPolicy:
 
 service:
   type: ClusterIP
-  port: 80
+  extraAnnotations: {}
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: http
+    name: http
 
 ingress:
   enabled: false

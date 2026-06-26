@@ -62,9 +62,11 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           ports:
-            - name: http
-              containerPort: {{ .Values.containerPort }}
-              protocol: TCP
+          {{- range .Values.containerPorts }}
+            - name: {{ .name }}
+              containerPort: {{ .containerPort }}
+              protocol: {{ .protocol }}
+          {{- end }}
           {{- if .Values.probes.startup.enabled }}
           startupProbe:
             {{- include "web-app.probe" .Values.probes.startup | nindent 12 }}
