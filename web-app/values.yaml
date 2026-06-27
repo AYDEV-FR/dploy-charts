@@ -6,6 +6,10 @@ replicaCount: 1
 image:
   repository: ""        # e.g. zot.asso-hzv.fr/wargame/2026/bokanovsky
   tag: latest
+  # When set, the image is referenced by digest (repo@digest) and `tag` is
+  # ignored. Immutable + content-addressed: lets the RKE2 embedded registry
+  # mirror (Spegel) distribute it P2P reliably. e.g. sha256:deadbeef...
+  digest: ""
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []     # [ { name: regcred } ]
