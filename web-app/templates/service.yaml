@@ -2,11 +2,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "web-app.fullname" . }}
+  {{- with .Values.service.extraAnnotations }}
   annotations:
-    {{- toYaml .Values.service.extraAnnotations | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   labels:
     {{- include "web-app.labels" . | nindent 4 }}
-    {{- toYaml .Values.service.extraLabels | nindent 4}}
+    {{- with .Values.service.extraLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   type: {{ .Values.service.type }}
 {{- /*
