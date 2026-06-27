@@ -123,6 +123,7 @@ networkPolicy:
 service:
   type: ClusterIP
   extraAnnotations: {}
+  extraLabels: {}
   ports:
   - port: 80
     protocol: TCP

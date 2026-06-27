@@ -6,6 +6,7 @@ metadata:
     {{- toYaml .Values.service.extraAnnotations | nindent 4 }}
   labels:
     {{- include "web-app.labels" . | nindent 4 }}
+    {{- toYaml .Values.service.extraLabels | nindent 4}}
 spec:
   type: {{ .Values.service.type }}
 {{- /*
