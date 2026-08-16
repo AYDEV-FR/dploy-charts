@@ -1,0 +1,64 @@
+# Example: deploy CTFd with the Dploy plugin, so players get a Deploy button on
+# any challenge tagged `dploy:<template>`.
+#
+#   helm install ctfd ./ctfd -n ctfd --create-namespace -f examples/dploy-values.yaml
+#
+# The plugin writes DployInstanceClaim objects to the cluster directly — it does
+# not call the Dploy API, so CTFd's own session is the identity and there is no
+# token to broker. That means it needs RBAC, which the chart does not create:
+# see the Role/RoleBinding at the bottom of this file.
+
+image:
+  repository: ctfd/ctfd
+  tag: "3.8.6"
+
+persistence:
+  enabled: true
+  size: 2Gi
+
+plugins:
+  - name: ctfd_dploy # -> /opt/CTFd/CTFd/plugins/ctfd_dploy
+    image: ghcr.io/aydev-fr/ctfd-dploy-plugin:0.2.0
+    pullPolicy: IfNotPresent
+
+env:
+  # Namespace holding the DployTemplate and DployInstanceClaim objects. Note
+  # this is Dploy's namespace, not CTFd's.
+  - name: DPLOY_NAMESPACE
+    value: dploy-system
+  # What one "Extend" click asks for when a template sets no
+  # spec.ttl.extendSeconds. The operator clamps to the real ceiling anyway.
+  - name: DPLOY_EXTEND_SECONDS
+    value: "3600"
+
+# ---------------------------------------------------------------------------
+# Required, and NOT created by this chart. The chart declares no service
+# account, so CTFd runs as `default` in its namespace — that is the subject to
+# bind. Apply alongside the release, in Dploy's namespace:
+#
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: Role
+# metadata:
+#   name: ctfd-dploy-plugin
+#   namespace: dploy-system
+# rules:
+#   - apiGroups: ["dploy.dev"]
+#     resources: ["dploytemplates"]
+#     verbs: ["get", "list"]
+#   - apiGroups: ["dploy.dev"]
+#     resources: ["dployinstanceclaims"]
+#     verbs: ["get", "list", "create", "patch", "delete"]
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: RoleBinding
+# metadata:
+#   name: ctfd-dploy-plugin
+#   namespace: dploy-system
+# roleRef:
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: Role
+#   name: ctfd-dploy-plugin
+# subjects:
+#   - kind: ServiceAccount
+#     name: default
+#     namespace: ctfd
