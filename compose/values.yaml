@@ -81,3 +81,12 @@ httpRoute:
 # username: ""
 # uuid: ""
 # ingressHost: ""
+
+# Network isolation. This chart runs a privileged container, so the default is
+# to lock outbound traffic: a popped stack cannot phone home, scan the cluster,
+# or reach another team's challenge. DNS is always allowed.
+networkPolicy:
+  enabled: true
+  allowEgress: false
+  # Namespace (by metadata.name label) the ingress controller runs in.
+  ingressNamespace: ingress-nginx

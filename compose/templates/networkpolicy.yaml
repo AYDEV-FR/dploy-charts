@@ -1,0 +1,45 @@
+{{- if .Values.networkPolicy.enabled -}}
+{{/*
+This chart runs the stack in a privileged container (or a VM), so a challenge
+that gets popped starts with more than usual. Without a policy the pod reaches
+every other instance's pods and Services, the API server and dploy's own
+namespace — the charts that isolate less are exactly the ones that need this
+most. Default-deny egress, DNS excepted.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "compose.fullname" . }}
+  labels:
+    {{- include "compose.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "compose.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only the ingress controller / gateway namespace may reach the stack.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.port }}
+  egress:
+    # DNS is always allowed so in-cluster name resolution works.
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- if .Values.networkPolicy.allowEgress }}
+    # allowEgress: permit all other outbound traffic. A stack that pulls images
+    # or calls out at runtime needs this; a CTF challenge usually should not.
+    - {}
+    {{- end }}
+{{- end }}
