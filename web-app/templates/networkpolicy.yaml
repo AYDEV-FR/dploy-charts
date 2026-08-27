@@ -1,4 +1,10 @@
 {{- if .Values.networkPolicy.enabled -}}
+{{/*
+Ingress is scoped to the ports the app actually listens on. It used to read
+`.Values.containerPort`, a value this chart no longer has (it is `containerPorts`,
+a list) — that rendered `port: null`, which means *every* port, silently widening
+the policy. Derived from containerPorts now.
+*/}}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -19,8 +25,19 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}
       ports:
-        - protocol: TCP
-          port: {{ .Values.containerPort }}
+        {{- range .Values.containerPorts }}
+        - protocol: {{ .protocol | default "TCP" }}
+          port: {{ .containerPort }}
+        {{- end }}
+    {{- $external := include "web-app.externalPorts" . | fromYamlArray }}
+    {{- with $external }}
+    # Ports on a LoadBalancer are hit straight from outside the cluster: that
+    # traffic carries no source namespace, so a namespaceSelector would drop it.
+    # Opted into per Service with `externalIngress: true` — scoped to those
+    # ports only, never a blanket allow.
+    - ports:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
   egress:
     # DNS is always allowed so in-cluster name resolution works.
     - to:

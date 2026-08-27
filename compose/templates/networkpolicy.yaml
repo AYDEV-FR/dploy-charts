@@ -6,6 +6,7 @@ every other instance's pods and Services, the API server and dploy's own
 namespace — the charts that isolate less are exactly the ones that need this
 most. Default-deny egress, DNS excepted.
 */}}
+{{- $external := include "compose.externalPorts" . | fromYamlArray -}}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -20,14 +21,25 @@ spec:
     - Ingress
     - Egress
   ingress:
-    # Only the ingress controller / gateway namespace may reach the stack.
+    # Only the ingress controller / gateway namespace may reach the stack, and
+    # only on the ports the primary Service actually publishes.
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}
       ports:
-        - protocol: TCP
-          port: {{ .Values.service.port }}
+        {{- range (include "compose.primaryPorts" . | fromYamlArray) }}
+        - protocol: {{ .protocol }}
+          port: {{ .targetPort }}
+        {{- end }}
+    {{- with $external }}
+    # Ports on a LoadBalancer are hit straight from outside the cluster: that
+    # traffic carries no source namespace, so a namespaceSelector would drop it.
+    # Opted into per Service with `externalIngress: true` — scoped to those
+    # ports only, never a blanket allow.
+    - ports:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
   egress:
     # DNS is always allowed so in-cluster name resolution works.
     - to:

@@ -1,0 +1,40 @@
+{{/*
+Extra Services: one per entry in `extraServices`. A Service carries a single
+`type`, so an app exposing both an HTTP port and a raw TCP port cannot express
+both in one — the HTTP port belongs on a ClusterIP behind the gateway, the TCP
+port needs its own LoadBalancer with its own external-dns hostname and LB-pool
+label. Their targetPorts must name entries of `containerPorts`.
+*/}}
+{{- range $svc := .Values.extraServices }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "web-app.fullname" $ }}-{{ $svc.name }}
+  {{- with $svc.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "web-app.labels" $ | nindent 4 }}
+    {{- with $svc.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ $svc.type | default "ClusterIP" }}
+  {{- with $svc.loadBalancerIP }}
+  loadBalancerIP: {{ . | quote }}
+  {{- end }}
+  {{- with $svc.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ . }}
+  {{- end }}
+  ports:
+    {{- range $svc.ports }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .targetPort | default .name }}
+      protocol: {{ .protocol | default "TCP" }}
+    {{- end }}
+  selector:
+    {{- include "web-app.selectorLabels" $ | nindent 4 }}
+{{- end }}

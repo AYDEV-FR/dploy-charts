@@ -37,11 +37,57 @@ runtimeClassName: ""
 # is the boundary — or on clusters without user namespaces.
 hostUsers: false
 
-# Service exposing the port a compose service PUBLISHES (left side of "8080:80").
-# Services in the stack that publish nothing stay internal to the pod.
+# Primary Service, exposing the ports a compose service PUBLISHES (the left side
+# of "8080:80"). Services in the stack that publish nothing stay internal to the
+# pod. This is the Service the HTTPRoute/Ingress and the probes point at.
 service:
   type: ClusterIP
+
+  # Legacy single port. Used ONLY when `ports` below is empty, and then exposed
+  # under the name `entry` — kept so releases predating multi-port keep working.
   port: 8080
+
+  # Multi-port form. Each entry becomes a Service port AND a containerPort.
+  # targetPort defaults to port (a compose stack publishes on the pod network,
+  # so the published port IS the container port); protocol defaults to TCP.
+  ports: []
+  #   - name: http          # <= 15 chars, it also names the containerPort
+  #     port: 8080
+  #     targetPort: 8080
+  #     protocol: TCP
+
+  # Port the startup/readiness probes and the HTTPRoute/Ingress backend use.
+  # Defaults to the first entry of `ports`. Set it when the first published port
+  # is not the one that signals the stack is up.
+  probePort: ""
+
+  extraAnnotations: {}
+  extraLabels: {}
+
+  # NetworkPolicy: accept traffic from outside the cluster on these ports. Only
+  # meaningful when type is LoadBalancer/NodePort — that traffic has no source
+  # namespace, so the gateway-namespace rule alone would drop it.
+  externalIngress: false
+
+# Additional Services, one object per entry. A Service has a single `type`, so a
+# stack that publishes an HTTP port AND a raw TCP port cannot express both in one:
+# the HTTP port belongs on a ClusterIP behind the gateway, the TCP port needs its
+# own LoadBalancer, its own external-dns hostname and its own LB-pool label.
+extraServices: []
+#   - name: ssh                     # suffixed to the release name
+#     type: LoadBalancer
+#     labels:
+#       lb-pool: public             # opt in to a specific LB-IPAM pool
+#     annotations:
+#       external-dns.alpha.kubernetes.io/hostname: ssh.chall.example.org
+#     externalIngress: true         # let the NetworkPolicy accept outside traffic
+#     loadBalancerIP: ""            # optional, pin an address
+#     externalTrafficPolicy: ""     # e.g. Local to preserve the client IP
+#     ports:
+#       - name: ssh
+#         port: 2200
+#         targetPort: 2200
+#         protocol: TCP
 
 # DinD image (the stack's own images are loaded from the bundle, not from here).
 image: docker:28-dind
