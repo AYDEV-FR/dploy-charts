@@ -124,6 +124,7 @@ networkPolicy:
   # there are allowed to reach this app. Adjust to your ingress/gateway ns.
   ingressNamespace: ingress-nginx
 
+# Primary Service — the one the HTTPRoute/Ingress points at.
 service:
   type: ClusterIP
   extraAnnotations: {}
@@ -133,6 +134,31 @@ service:
     protocol: TCP
     targetPort: http
     name: http
+  # NetworkPolicy: accept traffic from outside the cluster on this Service's
+  # ports. Only meaningful when type is LoadBalancer/NodePort — that traffic has
+  # no source namespace, so the gateway-namespace rule alone would drop it.
+  externalIngress: false
+
+# Additional Services, one object per entry. A Service carries a single `type`,
+# so an app that speaks HTTP on one port and raw TCP on another cannot express
+# both in one: the HTTP port belongs on a ClusterIP behind the gateway, the TCP
+# port needs its own LoadBalancer, its own external-dns hostname and its own
+# LB-pool label. `targetPort` names an entry of `containerPorts`.
+extraServices: []
+#   - name: tcp
+#     type: LoadBalancer
+#     labels:
+#       lb-pool: public             # opt in to a specific LB-IPAM pool
+#     annotations:
+#       external-dns.alpha.kubernetes.io/hostname: tcp.chall.example.org
+#     externalIngress: true         # let the NetworkPolicy accept outside traffic
+#     loadBalancerIP: ""            # optional, pin an address
+#     externalTrafficPolicy: ""     # e.g. Local to preserve the client IP
+#     ports:
+#       - name: tcp
+#         port: 4444
+#         targetPort: tcp           # must match a containerPorts entry name
+#         protocol: TCP
 
 ingress:
   enabled: false

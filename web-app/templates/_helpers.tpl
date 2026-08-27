@@ -85,3 +85,32 @@ periodSeconds: {{ $probe.periodSeconds | default 10 }}
 timeoutSeconds: {{ $probe.timeoutSeconds | default 3 }}
 failureThreshold: {{ $probe.failureThreshold | default 3 }}
 {{- end }}
+
+{{/*
+Ports reachable from OUTSIDE the cluster — a LoadBalancer Service is hit
+directly by clients, so the traffic has no source namespace for a
+namespaceSelector to match. Opt in per Service with `externalIngress: true`.
+Resolves each Service port back to the containerPort it targets, since that is
+what a NetworkPolicy matches on.
+*/}}
+{{- define "web-app.externalPorts" -}}
+{{- $byName := dict -}}
+{{- range .Values.containerPorts }}
+{{- $_ := set $byName .name .containerPort }}
+{{- end }}
+{{- if .Values.service.externalIngress }}
+{{- range .Values.service.ports }}
+- protocol: {{ .protocol | default "TCP" }}
+  port: {{ get $byName (.targetPort | toString) | default .targetPort }}
+{{- end }}
+{{- end }}
+{{- range $svc := .Values.extraServices }}
+{{- if $svc.externalIngress }}
+{{- range $svc.ports }}
+{{- $tp := .targetPort | default .name }}
+- protocol: {{ .protocol | default "TCP" }}
+  port: {{ get $byName ($tp | toString) | default $tp }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end -}}

@@ -1,0 +1,41 @@
+{{/*
+Extra Services: one per entry in `extraServices`. Each gets its own type,
+annotations and labels, which is the whole point — a stack that publishes both
+an HTTP port and a raw TCP port needs a ClusterIP behind the gateway AND a
+LoadBalancer with its own external-dns hostname, and a single Service cannot be
+both. Their ports must already be published by the compose stack; the chart only
+routes to them.
+*/}}
+{{- range $svc := .Values.extraServices }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "compose.fullname" $ }}-{{ $svc.name }}
+  {{- with $svc.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "compose.labels" $ | nindent 4 }}
+    {{- with $svc.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ $svc.type | default "ClusterIP" }}
+  {{- with $svc.loadBalancerIP }}
+  loadBalancerIP: {{ . | quote }}
+  {{- end }}
+  {{- with $svc.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ . }}
+  {{- end }}
+  ports:
+    {{- range $svc.ports }}
+    - name: {{ .name | trunc 15 | trimSuffix "-" }}
+      port: {{ .port }}
+      targetPort: {{ .name | trunc 15 | trimSuffix "-" }}
+      protocol: {{ .protocol | default "TCP" }}
+    {{- end }}
+  selector:
+    {{- include "compose.selectorLabels" $ | nindent 4 }}
+{{- end }}

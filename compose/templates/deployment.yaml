@@ -79,10 +79,10 @@ spec:
             - name: DPLOY_UUID
               value: {{ .Values.uuid | quote }}
             {{- end }}
+          # One containerPort per exposed port, primary Service and extra
+          # Services alike (deduplicated by port number).
           ports:
-            - name: entry
-              containerPort: {{ .Values.service.port }}
-              protocol: TCP
+            {{- include "compose.containerPorts" . | nindent 12 }}
           # DinD requires privileged; safe only because the pod is confined by
           # the RuntimeClass sandbox or user namespaces.
           securityContext:
@@ -91,12 +91,12 @@ spec:
           # up`). Generous budget (~300s) for large bundles.
           startupProbe:
             tcpSocket:
-              port: entry
+              port: {{ include "compose.primaryPort" . }}
             periodSeconds: 5
             failureThreshold: 60
           readinessProbe:
             tcpSocket:
-              port: entry
+              port: {{ include "compose.primaryPort" . }}
             periodSeconds: 10
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

@@ -1,35 +1,37 @@
 {{- if .Values.networkPolicy.enabled -}}
 {{/*
-Ingress is scoped to the ports the app actually listens on. It used to read
-`.Values.containerPort`, a value this chart no longer has (it is `containerPorts`,
-a list) — that rendered `port: null`, which means *every* port, silently widening
-the policy. Derived from containerPorts now.
+This chart runs the stack in a privileged container (or a VM), so a challenge
+that gets popped starts with more than usual. Without a policy the pod reaches
+every other instance's pods and Services, the API server and dploy's own
+namespace — the charts that isolate less are exactly the ones that need this
+most. Default-deny egress, DNS excepted.
 */}}
+{{- $external := include "compose.externalPorts" . | fromYamlArray -}}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "web-app.fullname" . }}
+  name: {{ include "compose.fullname" . }}
   labels:
-    {{- include "web-app.labels" . | nindent 4 }}
+    {{- include "compose.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      {{- include "web-app.selectorLabels" . | nindent 6 }}
+      {{- include "compose.selectorLabels" . | nindent 6 }}
   policyTypes:
     - Ingress
     - Egress
   ingress:
-    # Allow traffic from the ingress controller / gateway namespace.
+    # Only the ingress controller / gateway namespace may reach the stack, and
+    # only on the ports the primary Service actually publishes.
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}
       ports:
-        {{- range .Values.containerPorts }}
-        - protocol: {{ .protocol | default "TCP" }}
-          port: {{ .containerPort }}
+        {{- range (include "compose.primaryPorts" . | fromYamlArray) }}
+        - protocol: {{ .protocol }}
+          port: {{ .targetPort }}
         {{- end }}
-    {{- $external := include "web-app.externalPorts" . | fromYamlArray }}
     {{- with $external }}
     # Ports on a LoadBalancer are hit straight from outside the cluster: that
     # traffic carries no source namespace, so a namespaceSelector would drop it.
@@ -48,7 +50,8 @@ spec:
         - protocol: TCP
           port: 53
     {{- if .Values.networkPolicy.allowEgress }}
-    # allowEgress: permit all other outbound traffic.
+    # allowEgress: permit all other outbound traffic. A stack that pulls images
+    # or calls out at runtime needs this; a CTF challenge usually should not.
     - {}
     {{- end }}
 {{- end }}
