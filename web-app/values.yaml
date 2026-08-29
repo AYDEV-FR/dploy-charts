@@ -112,6 +112,16 @@ persistence:
   size: "1Gi"
 
 # Extra volumes / mounts (e.g. an emptyDir for /tmp under readOnlyRootFilesystem).
+# Conteneurs supplementaires dans le MEME pod que `app`, ecrits tels quels
+# (spec Kubernetes complete : image, env, ports, volumeMounts, securityContext...).
+# Le pod partage un namespace reseau : ils se joignent entre eux sur 127.0.0.1, ce
+# qu'aucun Service n'expose. Attention, `runtimeClassName` est par POD : tous les
+# conteneurs partagent le meme runtime.
+extraContainers: []
+#   - name: sidecar
+#     image: repo/sidecar:1.0
+#     ports: [ { containerPort: 9000, name: side } ]
+
 extraVolumes: []
 extraVolumeMounts: []
 
@@ -179,6 +189,14 @@ httpRoute:
   # Gateway API filters applied to the route rule, e.g. a ResponseHeaderModifier
   # to normalize a backend's WebSocket Upgrade token casing.
   filters: []
+  # Regles explicites, pour exposer plusieurs chemins sur des ports differents du
+  # meme pod. Vide => une seule regle `/` vers le premier port du Service.
+  # Un backendRef sans `name` vise le Service du chart.
+  rules: []
+  #   - matches: [ { path: { type: PathPrefix, value: /api } } ]
+  #     backendRefs: [ { port: 8082 } ]
+  #   - matches: [ { path: { type: PathPrefix, value: / } } ]
+  #     backendRefs: [ { port: 8081 } ]
   #   - type: ResponseHeaderModifier
   #     responseHeaderModifier:
   #       set:

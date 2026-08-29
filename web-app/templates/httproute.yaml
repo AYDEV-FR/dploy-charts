@@ -22,6 +22,30 @@ spec:
     {{- toYaml .Values.httpRoute.hostnames | nindent 4 }}
   {{- end }}
   rules:
+    {{- if .Values.httpRoute.rules }}
+    {{- /* Regles explicites : chaque entree est une regle HTTPRoute telle quelle,
+           a ceci pres qu'un backendRefs sans `name` vise le Service du chart. Sert
+           aux applications qui exposent plusieurs chemins sur des ports differents
+           du meme pod. */}}
+    {{- range .Values.httpRoute.rules }}
+    - {{- if .matches }}
+      matches:
+        {{- toYaml .matches | nindent 8 }}
+      {{- end }}
+      {{- with .filters }}
+      filters:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      backendRefs:
+        {{- range .backendRefs }}
+        - name: {{ .name | default $fullName }}
+          port: {{ .port }}
+          {{- with .weight }}
+          weight: {{ . }}
+          {{- end }}
+        {{- end }}
+    {{- end }}
+    {{- else }}
     - matches:
         - path:
             type: PathPrefix
@@ -33,4 +57,5 @@ spec:
       backendRefs:
         - name: {{ $fullName }}
           port: {{ $svcPort }}
+    {{- end }}
 {{- end }}
