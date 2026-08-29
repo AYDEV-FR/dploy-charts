@@ -133,6 +133,12 @@ networkPolicy:
   # Namespace (by metadata.name label) the ingress controller runs in; pods
   # there are allowed to reach this app. Adjust to your ingress/gateway ns.
   ingressNamespace: ingress-nginx
+  # Ports SUPPLEMENTAIRES que la gateway peut joindre, en plus de containerPorts.
+  # A utiliser avec extraContainers : les ports de ces conteneurs ne sont PAS
+  # derives automatiquement, pour qu'un backend cense rester en loopback dans le
+  # pod ne se retrouve pas ouvert a la gateway par accident.
+  extraIngressPorts: []
+  #   - { port: 8082 }
 
 # Primary Service — the one the HTTPRoute/Ingress points at.
 service:

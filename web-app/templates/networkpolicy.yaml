@@ -29,6 +29,14 @@ spec:
         - protocol: {{ .protocol | default "TCP" }}
           port: {{ .containerPort }}
         {{- end }}
+        {{- /* Ports de conteneurs supplementaires que la gateway doit joindre.
+               DELIBEREMENT explicite : deriver automatiquement les ports des
+               extraContainers exposerait aussi ceux qui doivent rester internes
+               au pod (un backend en loopback, p.ex.). */}}
+        {{- range .Values.networkPolicy.extraIngressPorts }}
+        - protocol: {{ .protocol | default "TCP" }}
+          port: {{ .port }}
+        {{- end }}
     {{- $external := include "web-app.externalPorts" . | fromYamlArray }}
     {{- with $external }}
     # Ports on a LoadBalancer are hit straight from outside the cluster: that
