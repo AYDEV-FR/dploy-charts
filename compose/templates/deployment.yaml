@@ -88,12 +88,14 @@ spec:
           securityContext:
             privileged: true
           # Hold readiness through cold start (dockerd + `docker load` + `compose
-          # up`). Generous budget (~300s) for large bundles.
+          # up`). A pod that exceeds the budget is killed and restarted from
+          # scratch — on a slow bundle that loops forever, so size this on the
+          # WORST node, not the average one.
           startupProbe:
             tcpSocket:
               port: {{ include "compose.primaryPort" . }}
-            periodSeconds: 5
-            failureThreshold: 60
+            periodSeconds: {{ .Values.startupProbe.periodSeconds }}
+            failureThreshold: {{ .Values.startupProbe.failureThreshold }}
           readinessProbe:
             tcpSocket:
               port: {{ include "compose.primaryPort" . }}

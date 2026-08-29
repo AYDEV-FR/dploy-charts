@@ -117,6 +117,25 @@ Leaving `runtimeClassName` empty uses the cluster's default runtime with user
 namespaces (`hostUsers: false`) — the privileged DinD still maps to an
 unprivileged host UID, with no node-side dependency.
 
+> **Kata + DinD falls back to `vfs` unless the image carries fuse-overlayfs.**
+> `/var/lib/docker` is an `emptyDir` shared into the guest over virtio-fs, where
+> `overlay2` cannot mount (`failed to mount overlay: invalid argument`). dockerd's
+> fallback order is `overlay2` → `fuse-overlayfs` → `vfs`, and `vfs` has **no
+> copy-on-write**: every image layer is copied whole. On a 6-image bundle that is
+> **217s of `docker load` and 33s of `compose up`** — enough to blow a cold-start
+> budget and leave the pod restarting forever.
+>
+> Point `image` at a DinD image that installs the `fuse-overlayfs` package
+> (`FROM docker:28-dind` + `apk add --no-cache fuse-overlayfs`) and the same
+> bundle loads in **57s** and comes up in **4s**. No `--storage-driver` flag is
+> needed — dockerd picks it once the binary is there. The chart already creates
+> `/dev/fuse` at boot, which the guest does not provide on its own.
+>
+> Install the **package**, not the binary: `fuse-overlayfs` links against
+> libfuse3, and a bare copy from the `-dind-rootless` image dies on
+> `Error relocating: fuse_reply_statfs: symbol not found` — images load, but no
+> container starts. Stock `docker:*-dind` does not ship it.
+
 > **Kata + DinD needs virtiofs `--xattr`.** Under Kata, `/var/lib/docker` (the
 > `emptyDir`) is shared into the guest over **virtio-fs**, which by default
 > rejects the `security.capability` extended attribute that `docker load` sets on
@@ -187,7 +206,10 @@ helm template ./compose --set source.oci.reference=ghcr.io/x/y:v1
 - **`privileged: true` is required by DinD.** It is safe only because the pod is
   confined by user namespaces or a Kata micro-VM. Never run with
   `hostUsers: true` on a shared/untrusted cluster without a sandbox runtime.
-- **`/var/lib/docker` is an `emptyDir`** — overlay-on-overlay otherwise.
+- **`/var/lib/docker` is an `emptyDir`** — overlay-on-overlay otherwise. Under
+  Kata that means virtio-fs, so give `image` a DinD build carrying
+  `fuse-overlayfs` (see above) or dockerd runs on `vfs` and cold start is ~4x
+  slower.
 - **Persistence is filesystem-only** — user namespaces disallow raw block
   volumes.
 - **Under Kata, use `kata-qemu` and allow the virtiofs `--xattr` annotation** —

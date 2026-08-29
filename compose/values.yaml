@@ -90,7 +90,21 @@ extraServices: []
 #         protocol: TCP
 
 # DinD image (the stack's own images are loaded from the bundle, not from here).
+#
+# Under Kata, prefer an image that carries `fuse-overlayfs` (plus libfuse3 — the
+# bare binary aborts on a missing symbol). /var/lib/docker is an emptyDir shared
+# into the guest over virtio-fs, where overlay2 cannot mount; without
+# fuse-overlayfs dockerd falls back to vfs, which copies every image layer whole.
+# Measured on a 6-image bundle: `docker load` 217s -> 57s, `compose up` 33s -> 4s.
+# `docker:28-dind` does NOT ship it; only the -dind-rootless variant does.
 image: docker:28-dind
+
+# Cold-start budget: periodSeconds x failureThreshold seconds before the kubelet
+# kills the pod and starts over. The default 600s fits a large bundle on vfs;
+# with fuse-overlayfs a 6-image stack is up in ~80s.
+startupProbe:
+  periodSeconds: 5
+  failureThreshold: 120
 
 # One pod runs the whole stack — size for everything in it.
 resources:

@@ -8,7 +8,7 @@ maintainers:
 
 type: application
 
-version: 0.2.0
+version: 0.3.0
 appVersion: "28-dind"
 
 kubeVersion: ">=1.19.0-0"

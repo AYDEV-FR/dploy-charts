@@ -24,7 +24,25 @@ data:
       done
     fi
 
+    # /dev/fuse, for the fuse-overlayfs storage driver. Under Kata,
+    # /var/lib/docker is an emptyDir shared into the guest over virtio-fs, where
+    # overlay2 cannot mount ("failed to mount overlay: invalid argument").
+    # dockerd's next choice is fuse-overlayfs, then vfs — and vfs has no
+    # copy-on-write, so every image layer is copied whole: on a 6-image bundle
+    # that is 217s of `docker load` instead of 57s.
+    #
+    # The guest kernel does FUSE (virtio-fs IS fuse), but nothing creates the
+    # device node. We do — the container is privileged. Harmless when the image
+    # ships no fuse-overlayfs binary: dockerd just falls through to vfs as before.
+    if [ ! -e /dev/fuse ]; then
+      mknod /dev/fuse c 10 229 2>/dev/null && chmod 0666 /dev/fuse || \
+        echo "compose: /dev/fuse indisponible, dockerd retombera sur vfs" >&2
+    fi
+
     # Start the Docker daemon in the background (socket only, TLS disabled).
+    # No --storage-driver: dockerd probes overlay2 -> fuse-overlayfs -> vfs and
+    # picks the best one available. Give it an image carrying fuse-overlayfs
+    # (and libfuse3 — the bare binary is not enough) to skip vfs entirely.
     # dockerd logs stream to this container's stdout so failures are visible.
     echo "compose: starting dockerd…"
     dockerd-entrypoint.sh dockerd --host=unix:///var/run/docker.sock &
